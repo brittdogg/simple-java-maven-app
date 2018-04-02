@@ -1,21 +1,33 @@
 #!groovy
-pipeline {
-    agent any
 
+pipeline {
+// The Maven container defined here becomes the agent that runs the build pipeline. It's separate from the Jenkins one.
+// Maps local m2 to docker m2 so that dependencies have lifespan of Docker itself, not this particular image.
+    agent {
+        docker {
+            image 'maven:3-alpine'
+            args '-v /root/.m2:/root/.m2'
+        }
+    }
     stages {
-        stage('Stage1') {
+        stage('Build') {
             steps {
-                echo 'Building..'
+                sh 'mvn -B -DskipTests clean package'
             }
         }
-        stage('Stage2') {
+        stage('Test') {
             steps {
-                echo 'Testing..'
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
             }
         }
-        stage('Stage3') {
+        stage('Deliver') {
             steps {
-                echo 'Deploying....'
+                sh './jenkins/scripts/deliver.sh'
             }
         }
     }
